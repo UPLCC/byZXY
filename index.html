@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta charset="utf-8" name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <title>生日快乐</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        *{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        canvas, 
+        #container, 
+        body, 
+        html {
+            outline: none !important;
+            -webkit-tap-highlight-color: transparent !important;
+            -webkit-touch-callout: none !important;
+            -webkit-user-select: none !important;
+            -moz-user-select: none !important;
+            -ms-user-select: none !important;
+            user-select: none !important;
+            -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+        }
+        *:focus {
+            outline: none !important;
+            box-shadow: none !important;
+        }
+        body {
+            background-color: #000;
+            overflow: hidden;
+            font-family: 'Segoe UI', sans-serif;
+            width: 100vw;
+            height: 100vh;
+            cursor: pointer;
+        }
+        
+        #container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+        .firework-trail {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 10;
+        }
+        .firework-particle {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 20;
+            box-shadow: 0 0 5px 2px currentColor;
+        }
+        .firework-center {
+            position: absolute;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 30;
+            filter: blur(1px);
+            box-shadow: 0 0 15px 8px currentColor;
+        }
+        @keyframes pulse {
+            0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(2); opacity: 0; }
+        }
+        .control-btn {
+            background: rgba(30, 30, 60, 0.7);
+            border: none;
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            font-size: 22px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        .control-btn:hover {
+            background: rgba(60, 60, 100, 0.9);
+            transform: scale(1.1);
+        }
+        .control-btn:active {
+            transform: scale(0.95);
+        }
+        .stars {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        .star {
+            position: absolute;
+            background-color: white;
+            border-radius: 50%;
+        }
+        @keyframes fadeInOut {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+        @media (max-width: 768px) {
+            .instruction {
+                font-size: 18px;
+            }
+            
+            .control-btn {
+                width: 45px;
+                height: 45px;
+                font-size: 18px;
+            }
+        }
+        #st{
+          position:absolute;
+          z-index:999;
+          color:white;
+          margin:16px;
+          font-size:13px;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <p id="st"></p>
+        <div class="stars" id="stars"></div>
+        <div class="instruction" id="instruction"></div>
+    </div>
+    <script>
+        const container = document.getElementById('container');
+        const starsContainer = document.getElementById('stars');
+        let audioContext;
+        let soundOn = false;
+        let autoFireActive = true;
+        let autoFireInterval;
+        let pstr=[
+"岁岁年年，欢喜不断，愿你的每个明天，都比今天更灿烂，岁岁年年，皆是良辰。",
+"万物皆甜，而你胜过万物，愿你生日此刻，时光温柔以待，美好不期而至，未来灿烂如星，笑容常伴。",
+"日有所乐，岁有所欢；年年今日，岁岁安康。愿你如星辰般闪耀，不畏风雨，不惧挑战，每一步都铺满阳光，绽放属于你的光彩。",
+"繁星点点，不及你眼中的光芒。生辰愉快呀，愿你人生，步步莲花，岁岁安康。",
+"四季更迭，岁月流转，时光不负美好，愿你眼里有光，笑里坦荡，自在如风，所遇皆温柔。",
+"有趣有盼，不负热爱，生日快乐，我的女孩，愿你不被执念困扰，不被世俗束缚，历经干帆，仍有梦想，永远年轻，永远热情。",
+"这一岁，希望你的每一天都洒满阳光，心中所想皆能如愿，生活处处是惊喜。",
+"时光流转岁月长，我们相伴不彷徨，愿你每日笑靥如花，快乐如影随形，生活比蜜甜。",
+"每一次的欢笑和泪水，都有你陪伴，我们一起经历的点点滴滴，都是我生命中最美好的回忆。往后余生，暴瘦是你，有钱是你，拥有一切美好的还是你，感恩所有，亲爱的，生日快乐。"
+        ];
+        function createStars() {
+            const starCount = 150;
+            for (let i = 0; i < starCount; i++) {
+                const star = document.createElement('div');
+                star.classList.add('star');
+                const size = Math.random() * 2 + 1;
+                star.style.width = `${size}px`;
+                star.style.height = `${size}px`;
+                star.style.left = `${Math.random() * 100}%`;
+                star.style.top = `${Math.random() * 100}%`;
+                star.style.opacity = Math.random() * 0.7 + 0.3;
+                const duration = Math.random() * 5 + 3;
+                star.style.animation = `twinkle ${duration}s infinite alternate`;
+                const style = document.createElement('style');
+                style.textContent = `
+                    @keyframes twinkle {
+                        0% { opacity: ${star.style.opacity}; }
+                        100% { opacity: ${parseFloat(star.style.opacity) * 0.5}; }
+                    }
+                `;
+                document.head.appendChild(style);
+                
+                starsContainer.appendChild(star);
+            }
+        }
+        function playFireworkSound(frequency, duration, type = 'sine') {
+            if (!soundOn) return;
+        }
+        function createClickPoint(x, y) {
+            const point = document.createElement('div');
+            point.classList.add('click-point');
+            point.style.left = `${x}px`;
+            point.style.top = `${y}px`;
+            const colors = ['#FF5252', '#FF4081', '#E040FB', '#7C4DFF', '#536DFE', '#448AFF', '#40C4FF', '#18FFFF', '#64FFDA', '#69F0AE'];
+            point.style.borderColor = colors[Math.floor(Math.random() * colors.length)];
+            container.appendChild(point);
+            setTimeout(() => {
+                if (point.parentNode) {
+                    point.parentNode.removeChild(point);
+                }
+            }, 500);
+        }
+        function createFireworkTrail(startX, startY, endX, endY) {
+            const trail = document.createElement('div');
+            trail.classList.add('firework-trail');
+            trail.style.left = `${startX}px`;
+            trail.style.top = `${startY}px`;
+            const colors = ['#FF5252', '#FF4081', '#E040FB', '#7C4DFF', '#536DFE', '#448AFF', '#40C4FF', '#18FFFF', '#64FFDA', '#69F0AE'];
+            const color = colors[Math.floor(Math.random() * colors.length)];
+            trail.style.backgroundColor = color;
+            container.appendChild(trail);
+            playFireworkSound(800, 0.8, 'sawtooth');
+            const animation = trail.animate([
+                { 
+                    transform: 'translate(0, 0)',
+                    opacity: 1
+                },
+                { 
+                    transform: `translate(${endX - startX}px, ${endY - startY}px)`,
+                    opacity: 0.8
+                }
+            ], {
+                duration: 800,
+                easing: 'cubic-bezier(0.1, 0.8, 0.2, 1)',
+                fill: 'forwards'
+            });
+            animation.onfinish = () => {
+                createFireworkExplosion(endX, endY, color);
+                if (trail.parentNode) {
+                    trail.parentNode.removeChild(trail);
+                }
+            };
+            return trail;
+        }
+        function createFireworkExplosion(x, y, baseColor) {
+            playFireworkSound(300, 1.2, 'square');
+            const center = document.createElement('div');
+            center.classList.add('firework-center');
+            center.style.left = `${x}px`;
+            center.style.top = `${y}px`;
+            center.style.backgroundColor = baseColor;
+            center.style.width = '20px';
+            center.style.height = '20px';
+            container.appendChild(center);
+            center.animate([
+                { 
+                    transform: 'translate(-50%, -50%) scale(0.5)',
+                    opacity: 1
+                },
+                { 
+                    transform: 'translate(-50%, -50%) scale(1.5)',
+                    opacity: 0
+                }
+            ], {
+                duration: 600,
+                easing: 'ease-out',
+                fill: 'forwards'
+            });
+            setTimeout(() => {
+                if (center.parentNode) {
+                    center.parentNode.removeChild(center);
+                }
+            }, 600);
+            const particleCount = 80;
+            for (let i = 0; i < particleCount; i++) {
+                createParticle(x, y, baseColor);
+            }
+        }
+        function createParticle(x, y, baseColor) {
+            const particle = document.createElement('div');
+            particle.classList.add('firework-particle');
+            particle.style.left = `${x}px`;
+            particle.style.top = `${y}px`;
+            const angle = Math.random() * Math.PI * 2;
+            const distance = Math.random() * 100 + 50;
+            const hueShift = (Math.random() * 60) - 30;
+            const saturationShift = (Math.random() * 30) - 15;
+            const lightnessShift = (Math.random() * 20) - 10;
+            const tempDiv = document.createElement('div');
+            tempDiv.style.color = baseColor;
+            document.body.appendChild(tempDiv);
+            const computedColor = getComputedStyle(tempDiv).color;
+            document.body.removeChild(tempDiv);
+            const colors = [
+                baseColor,
+                '#FF5252', '#FF4081', '#E040FB', '#7C4DFF', 
+                '#536DFE', '#448AFF', '#40C4FF', '#18FFFF', 
+                '#64FFDA', '#69F0AE', '#B2FF59', '#EEFF41'
+            ];
+            const color = colors[Math.floor(Math.random() * colors.length)];
+            particle.style.color = color;
+            particle.style.backgroundColor = color;
+            const size = Math.random() * 8 + 4;
+            particle.style.width = `${size}px`;
+            particle.style.height = `${size}px`;
+            container.appendChild(particle);
+            const endX = Math.cos(angle) * distance;
+            const endY = Math.sin(angle) * distance;
+            particle.animate([
+                { 
+                    transform: 'translate(0, 0) scale(1)',
+                    opacity: 1
+                },
+                { 
+                    transform: `translate(${endX}px, ${endY}px) scale(0.2)`,
+                    opacity: 0
+                }
+            ], {
+                duration: Math.random() * 1000 + 800,
+                easing: 'cubic-bezier(0.1, 0.2, 0.8, 0.1)',
+                fill: 'forwards'
+            });
+            setTimeout(() => {
+                if (particle.parentNode) {
+                    particle.parentNode.removeChild(particle);
+                }
+            }, 1800);
+        }
+        function handleClick(e) {
+            if (instruction.style.opacity !== '0') {
+                instruction.style.opacity = '0';
+                instruction.style.transition = 'opacity 0.5s';
+                setTimeout(() => {
+                    instruction.style.display = 'none';
+                }, 500);
+            }
+            const clickX = e.clientX;
+            const clickY = e.clientY;
+            createClickPoint(clickX, clickY);
+            const startX = Math.random() * window.innerWidth;
+            const startY = window.innerHeight + 20;
+            createFireworkTrail(startX, startY, clickX, clickY);
+        }
+        startAutoFire();
+        function startAutoFire() {
+            autoFireActive = true;
+            autoFireInterval = setInterval(() => {
+                const clickX = Math.random() * (window.innerWidth - 100) + 50;
+                const clickY = Math.random() * (window.innerHeight - 200) + 100;
+                createClickPoint(clickX, clickY);
+                const startX = Math.random() * window.innerWidth;
+                const startY = window.innerHeight + 20;
+                createFireworkTrail(startX, startY, clickX, clickY);
+            }, 300);
+        }
+        function initEventListeners() {
+            container.addEventListener('click', handleClick);
+            autoFireBtn.addEventListener('click', () => {
+                    startAutoFire();
+            });
+            clearAllBtn.addEventListener('click', clearAllFireworks);
+            window.addEventListener('resize', () => {
+                starsContainer.innerHTML = '';
+                createStars();
+            });
+        }
+        let allnum=[];
+        let map=new Map([["a0",0],["a1",0],["a2",0],["a3",0],["a4",0],["a5",0],["a6",0],["a7",0],["a8",0]]);
+        let thisnum=0,thisstr=0;
+        function randomnum(){
+          const renum=Math.floor(Math.random()*9);
+          if(map.get("a"+renum)==1){
+            randomnum();
+          }else{
+            allnum.push(renum);
+            thisnum=renum;
+            map.set("a"+renum,1);
+          }
+          return;
+        }
+        function pstrhtml(){
+          if(allnum.length-1==pstr.length)return;
+          if(!allnum[0]){randomnum();}
+          if(thisstr==pstr[thisnum].length-1&&allnum.length-1!==pstr.length){
+            randomnum();
+            thisstr=0;
+            document.getElementById("st").innerHTML+="<br><br>";
+          }
+          const span=document.createElement("span");
+          span.innerText = pstr[thisnum][thisstr];
+          span.style.opacity="0";
+          span.style.transition="opacity 0.2s ease-in";
+          document.getElementById("st").appendChild(span);
+          void span.offsetWidth;
+          span.style.opacity="1";
+          thisstr++;
+          setTimeout(()=>pstrhtml(),25);
+        }
+        setTimeout(()=>pstrhtml(),1000);
+        window.addEventListener('DOMContentLoaded', () => {
+            createStars();
+            initEventListeners();
+            setTimeout(() => {
+                instruction.style.opacity = '0';
+                instruction.style.transition = 'opacity 1.5s';
+                
+                setTimeout(() => {
+                    instruction.style.display = 'none';
+                }, 1500);
+            }, 5000);
+        });
+    </script>
+</body>
+</html>
